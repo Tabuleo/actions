@@ -6,6 +6,9 @@ on:
       vault-path:
         required: true
         type: string
+    secrets:
+      token:
+        required: true
     outputs:
       env-file:
         description: "The env file"
@@ -23,7 +26,7 @@ jobs:
         uses: matryxxx02/vault-action@v1.0.11
         with:
             url: https://vault.tabuleo.fr
-            token: ${{ secrets.VAULT_TOKEN }}
+            token: ${{ secrets.token }}
             tlsSkipVerify: true
             secrets: ${{ inputs.vault-path }} *      
       
