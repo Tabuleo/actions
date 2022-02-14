@@ -7,7 +7,7 @@ on:
         required: true
         type: string
     outputs:
-      env:
+      env-file:
         description: "The env file"
         value: ${{ jobs.format.outputs.output1 }}    
 
@@ -15,7 +15,7 @@ jobs:
   format:
     runs-on: ubuntu-latest
     outputs:
-      output1: ${{ steps.return.outputs.env }}
+      output1: ${{ steps.return.outputs.env-file }}
     steps:
       - uses: actions/checkout@v2
 
@@ -25,17 +25,17 @@ jobs:
             url: https://vault.tabuleo.fr
             token: ${{ secrets.VAULT_TOKEN }}
             tlsSkipVerify: true
-            secrets: ${{ path }} *      
+            secrets: ${{ vault-path }} *      
       
       - name: Create raw env json file
         run: echo "${{toJSON(env)}}" > .env.raw
       
       - name: Prepare env file
-        run: ENV=$(sed '1d; $d; s/:/=/g; s/[<",\ >]//g' .env.raw)
+        run: ENV_FILE=$(sed '1d; $d; s/:/=/g; s/[<",\ >]//g' .env.raw)
         
       - name: Return env   
         id: return
         run: | 
-          echo "::add-mask::$ENV"
-          echo "::set-output name=env::$ENV"
+          echo "::add-mask::$ENV_FILE"
+          echo "::set-output name=env-file::$ENV_FILE"
         
