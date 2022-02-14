@@ -1,0 +1,41 @@
+name: Format Vault secrets to args and env
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        required: true
+        type: string
+    outputs:
+      env:
+        description: "The env file"
+        value: ${{ jobs.format.outputs.output1 }}    
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    outputs:
+      output1: ${{ steps.return.outputs.env }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Import Secrets
+        uses: matryxxx02/vault-action@v1.0.11
+        with:
+            url: https://vault.tabuleo.fr
+            token: ${{ secrets.VAULT_TOKEN }}
+            tlsSkipVerify: true
+            secrets: ${{ path }} *      
+      
+      - name: Create raw env json file
+        run: echo "${{toJSON(env)}}" > .env.raw
+      
+      - name: Prepare env file
+        run: ENV=$(sed '1d; $d; s/:/=/g; s/[<",\ >]//g' .env.raw)
+        
+      - name: Return env   
+        id: return
+        run: | 
+          echo "::add-mask::$ENV"
+          echo "::set-output name=env::$ENV"
+        
