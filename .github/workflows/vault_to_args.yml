@@ -25,7 +25,7 @@ jobs:
             url: https://vault.tabuleo.fr
             token: ${{ secrets.VAULT_TOKEN }}
             tlsSkipVerify: true
-            secrets: ${{ vault-path }} *      
+            secrets: ${{ inputs.vault-path }} *      
       
       - name: Create raw env json file
         run: echo "${{toJSON(env)}}" > .env.raw
