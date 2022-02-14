@@ -8,11 +8,7 @@ on:
         type: string
     secrets:
       token:
-        required: true
-    outputs:
-      env-file:
-        description: "The env file"
-        value: ${{ jobs.format.outputs.output1 }}    
+        required: true 
 
 jobs:
   format:
@@ -34,11 +30,10 @@ jobs:
         run: echo "${{toJSON(env)}}" > .env.raw
       
       - name: Prepare env file
-        run: export ENV_FILE=$(sed '1d; $d; s/:/=/g; s/[<",\ >]//g' .env.raw)
+        run: sed '1d; $d; s/:/=/g; s/[<",\ >]//g' .env.raw > .env
         
-      - name: Return env   
-        id: return
-        run: | 
-          echo "::add-mask::$ENV_FILE"
-          echo "::set-output name=env-file::$(sed '1d; $d; s/:/=/g; s/[<",\ >]//g' .env.raw)"
-        
+      - name: Send .env   
+        uses: actions/upload-artifact@v2
+        with:
+          name: env-file
+          path: .env
