@@ -1,0 +1,26 @@
+name: Prepare and clean docker
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        required: true
+        type: string
+      service:
+        required: true
+        type: string
+
+jobs:
+  format:
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: add network
+        run: docker network create --ip-range=172.80.0.0/16 --subnet=172.80.0.0/16 tabuleo-network | true 
+
+      - name: remove dangling images
+        run: docker image prune -f
+
+      - name: remove old container
+        run: docker rm --force ${{ inputs.service }} | true
