@@ -3,7 +3,7 @@ name: Format Vault secrets to args and env
 on:
   workflow_call:
     inputs:
-      path:
+      vault-path:
         required: true
         type: string
     outputs:
