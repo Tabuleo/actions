@@ -6,6 +6,9 @@ on:
       vault-path:
         required: true
         type: string
+    outputs:
+      args:
+        value: string
     secrets:
       token:
         required: true 
@@ -14,7 +17,7 @@ jobs:
   format:
     runs-on: ubuntu-latest
     outputs:
-      output1: ${{ steps.return.outputs.env-file }}
+      output1: ${{ steps.return.outputs.args }}
     steps:
       - uses: actions/checkout@v2
 
@@ -33,12 +36,6 @@ jobs:
       
       - name: Prepare env file
         run: sed '1d; $d; s/:/=/g; s/[<",\ >]//g' .env.raw > .env
-        
-      - name: Send .env   
-        uses: actions/upload-artifact@v2
-        with:
-          name: env-file
-          path: .env
           
       - name: Return env
-        run: echo "::set-env name=some-token::$TOKEN1"
+        run: echo "::set-output name=args::$(cat .env)"
