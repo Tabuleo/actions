@@ -1,0 +1,27 @@
+name: Build docker image
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        required: true
+        type: string
+      service:
+        required: true
+        type: string
+      env:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: setup env and args
+        run: base64 --decode ${{ inputs.env }} > .env
+
+      - name: build image
+        run: >
+         docker build $(./buildargs.sh .env) -t ${{ inputs.service }} .
