@@ -8,7 +8,7 @@ on:
         type: string
     outputs:
       args:
-        value: string
+        value: ${{ jobs.format.outputs.output1 }}
     secrets:
       token:
         required: true 
