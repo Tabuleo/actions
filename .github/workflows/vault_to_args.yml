@@ -31,11 +31,9 @@ jobs:
       
       - name: Create raw env json file
         run: echo "${{toJSON(env)}}" > .env.raw
-        
-      - run: echo ${{env}}
-      
+              
       - name: Prepare env file
         run: sed '1d; $d; s/:/=/g; s/[<",\ >]//g' .env.raw > .env
           
       - name: Return env
-        run: echo "::set-output name=args::$(cat .env)"
+        run: echo "::set-output name=args::$(base64 .env)"
