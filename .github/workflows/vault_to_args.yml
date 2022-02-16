@@ -33,7 +33,7 @@ jobs:
         run: echo "${{toJSON(env)}}" > .env.raw
               
       - name: Prepare env file
-        run: sed '1d; $d; s/:/=/g; s/[<",\ >]//g' .env.raw > .env
+        run: sed -r '1d; $d; s/.*"(.*)":.*"(.*)".*/\1=\2/g' .env.raw > .env
           
       - name: Return env
         run: echo "::set-output name=args::$(base64 .env)"
