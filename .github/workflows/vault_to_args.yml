@@ -6,9 +6,6 @@ on:
       vault-path:
         required: true
         type: string
-    outputs:
-      args:
-        value: ${{ jobs.format.outputs.output1 }}
     secrets:
       token:
         required: true 
@@ -16,8 +13,6 @@ on:
 jobs:
   format:
     runs-on: ubuntu-latest
-    outputs:
-      output1: ${{ steps.return.outputs.args }}
     steps:
       - uses: actions/checkout@v2
 
@@ -36,6 +31,10 @@ jobs:
           
       - run: cat .actions-env
       
-      - name: Return env
-        id: return
-        run: echo "::set-output name=args::$(cat .actions-env | base64)"
+      - name: encrypt file
+        run: openssl enc -aes-256-cbc -nosalt -e -in .actions-env -out args.enc -K '${{secrets.ENCRYPT_FILE_KEY}}' -iv '${{secrets.ENCRYPT_FILE_IV}}'
+      
+      - uses: actions/upload-artifact@v2
+        with:
+          name: args-artifact
+          path: args.enc
