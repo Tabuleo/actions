@@ -22,7 +22,7 @@ jobs:
           path: .
       
       - name: decrypt file
-        run: openssl enc -aes-256-cbc -nosalt -d -in file.enc -out .actions-env -K '${{secrets.ENCRYPT_FILE_KEY}}' -iv '${{secrets.ENCRYPT_FILE_IV}}'
+        run: openssl enc -aes-256-cbc -nosalt -d -in args.enc -out .actions-env -K '${{secrets.ENCRYPT_FILE_KEY}}' -iv '${{secrets.ENCRYPT_FILE_IV}}'
         
       - run: cat .actions-env
 
