@@ -29,7 +29,8 @@ jobs:
             tlsSkipVerify: true
             secrets: ${{ inputs.vault-path }} *      
       
-      - run: echo $JSON | jq -r 'keys[] as $k | "\($k)=\(.[$k])"' > .env
+      - name: Parse JSON secrets to env
+        run: echo $JSON | jq -r 'keys[] as $k | "\($k)=\(.[$k])"' > .env
         env:
           JSON: ${{ toJSON(env) }}
           
