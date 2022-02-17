@@ -29,11 +29,9 @@ jobs:
             tlsSkipVerify: true
             secrets: ${{ inputs.vault-path }} *      
       
-      - name: Create raw env json file
-        run: echo "${{toJSON(env)}}" > .env.raw
-              
-      - name: Prepare env file
-        run: sed -r '1d; $d; s/\ *"(.*)":.*"(.*)",*/\1=\2/g' .env.raw > .env
+      - run: echo $JSON | jq -r 'keys[] as $k | "\($k)=\(.[$k])"' > .env
+        env:
+          JSON: ${{ toJSON(env) }}
           
       - name: Return env
         run: echo "::set-output name=args::$(base64 .env)"
