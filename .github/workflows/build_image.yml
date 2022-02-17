@@ -19,6 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - run: echo ${{inputs.env}}
+      
       - name: setup env and args
         run: base64 --decode ${{ inputs.env }} > .actions-env
 
