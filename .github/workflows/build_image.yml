@@ -23,6 +23,8 @@ jobs:
       
       - name: setup env and args
         run: echo ${{inputs.env}} | base64 --decode > .actions-env
+        
+      - run: cat .actions-env
 
       - name: build image
         run: >
