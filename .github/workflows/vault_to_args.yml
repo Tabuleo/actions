@@ -30,9 +30,11 @@ jobs:
             secrets: ${{ inputs.vault-path }} *      
       
       - name: Parse JSON secrets to env
-        run: echo $JSON | jq -r 'keys[] as $k | "\($k)=\(.[$k])"' > .env
+        run: echo $JSON | jq -r 'keys[] as $k | "\($k)=\(.[$k])"' > .actions-env
         env:
           JSON: ${{ toJSON(env) }}
           
+      - run: cat .actions-env
+      
       - name: Return env
         run: echo "::set-output name=args::$(base64 .env)"
