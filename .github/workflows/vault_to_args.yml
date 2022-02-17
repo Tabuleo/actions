@@ -38,4 +38,4 @@ jobs:
       
       - name: Return env
         id: return
-        run: echo "::set-output name=args::$(base64 .actions-env)"
+        run: echo "::set-output name=args::$(cat .actions-env | base64)"
