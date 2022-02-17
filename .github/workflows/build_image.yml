@@ -9,9 +9,6 @@ on:
       service:
         required: true
         type: string
-      env:
-        required: true
-        type: string
 
 jobs:
   build:
@@ -19,10 +16,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - run: echo ${{inputs.env}}
+      - uses: actions/download-artifact@v2
+        with:
+          name: args-artifact
+          path: .
       
-      - name: setup env and args
-        run: echo ${{inputs.env}} | base64 --decode > .actions-env
+      - name: decrypt file
+        run: openssl enc -aes-256-cbc -nosalt -d -in file.enc -out .actions-env -K '${{secrets.ENCRYPT_FILE_KEY}}' -iv '${{secrets.ENCRYPT_FILE_IV}}'
         
       - run: cat .actions-env
 
