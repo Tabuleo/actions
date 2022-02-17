@@ -24,4 +24,4 @@ jobs:
 
       - name: build image
         run: >
-         docker build $(awk '{ sub ("\\\\$", " "); printf " --build-arg %s", $0  } END { print ""  }' .env) -t ${{ inputs.service }} .
+         docker build $(awk '{ sub ("\\\\$", " "); printf " --build-arg %s", $0  } END { print ""  }' .actions-env) -t ${{ inputs.service }} .
