@@ -8,7 +8,11 @@ on:
         type: string
     secrets:
       token:
-        required: true 
+        required: true
+      iv:
+        required: true
+      key:
+        required: true
 
 jobs:
   format:
@@ -32,7 +36,7 @@ jobs:
       - run: cat .actions-env
       
       - name: encrypt file
-        run: openssl enc -aes-256-cbc -nosalt -e -in .actions-env -out args.enc -K '${{secrets.ENCRYPT_FILE_KEY}}' -iv '${{secrets.ENCRYPT_FILE_IV}}'
+        run: openssl enc -aes-256-cbc -nosalt -e -in .actions-env -out args.enc -K '${{secrets.key}}' -iv '${{secrets.iv}}'
       
       - uses: actions/upload-artifact@v2
         with:
