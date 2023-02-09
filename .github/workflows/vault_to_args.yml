@@ -6,6 +6,10 @@ on:
       vault-path:
         required: true
         type: string
+      additionalArgs:
+        required: false
+        type: string
+        description: "args formatted in JSON (example: '{\"KEY\": \"VALUE\"}')"
     secrets:
       token:
         required: true
@@ -32,6 +36,10 @@ jobs:
         run: echo $JSON | jq -r 'keys[] as $k | "\($k)=\(.[$k])"' > .actions-env
         env:
           JSON: ${{ toJSON(env) }}
+          
+      - name: Parse additional args and add it to env
+        if: inputs.additionalArgs != ''
+        run: echo ${{inputs.additionalArgs}} | jq -r 'keys[] as $k | "\($k)=\(.[$k])"' >> .actions-env
                 
       - name: encrypt file
         run: openssl enc -aes-256-cbc -nosalt -e -in .actions-env -out args.enc -K '${{secrets.key}}' -iv '${{secrets.iv}}'
