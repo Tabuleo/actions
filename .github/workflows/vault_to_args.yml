@@ -39,7 +39,7 @@ jobs:
           
       - name: Parse additional args and add it to env
         if: inputs.additionalArgs != ''
-        run: echo '$JSON' | jq -r 'keys[] as $k | "\($k)=\(.[$k])"' >> .actions-env
+        run: echo $JSON | jq -r 'keys[] as $k | "\($k)=\(.[$k])"' >> .actions-env
         env:
           JSON: ${{ inputs.args }}
                 
