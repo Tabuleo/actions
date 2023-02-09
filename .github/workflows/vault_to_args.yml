@@ -39,7 +39,9 @@ jobs:
           
       - name: Parse additional args and add it to env
         if: inputs.additionalArgs != ''
-        run: echo ${{inputs.additionalArgs}} | jq -r 'keys[] as $k | "\($k)=\(.[$k])"' >> .actions-env
+        run: echo $JSON | jq -r 'keys[] as $k | "\($k)=\(.[$k])"' >> .actions-env
+        env:
+          JSON: ${{ inputs.args }}
                 
       - name: encrypt file
         run: openssl enc -aes-256-cbc -nosalt -e -in .actions-env -out args.enc -K '${{secrets.key}}' -iv '${{secrets.iv}}'
