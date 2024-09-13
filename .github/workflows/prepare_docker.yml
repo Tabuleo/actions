@@ -14,7 +14,7 @@ jobs:
   prepare:
     runs-on: ${{ inputs.runner }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: add network
         run: docker network create --ip-range=172.80.0.0/16 --subnet=172.80.0.0/16 tabuleo-network | true 
