@@ -1,0 +1,155 @@
+name: Redact and send changelog on Slack
+
+on:
+  workflow_call:
+    inputs:
+      project:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Collect changes since previous successful deploy
+        id: collect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WF_ID: ${{ github.event.workflow_run.workflow_id }}
+          RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+        run: |
+          echo "::group::Contexte"
+          echo "Deploy run #$RUN_NUMBER (workflow $WF_ID), branche $HEAD_BRANCH"
+          echo "Commit déployé (HEAD) : $HEAD_SHA"
+          echo "::endgroup::"
+
+          echo "::group::Derniers déploiements réussis (API GitHub)"
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WF_ID/runs?status=success&per_page=30" \
+            --jq '.workflow_runs[] | "#\(.run_number) \(.head_sha[0:7]) \(.head_branch) \(.created_at)"'
+          echo "::endgroup::"
+
+          BASE=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WF_ID/runs?status=success&per_page=30" \
+            --jq "[.workflow_runs[] | select(.run_number < $RUN_NUMBER)][0].head_sha // empty")
+          REASON="dernier déploiement réussi précédent"
+
+          if [ -z "$BASE" ]; then
+            BASE=$(git rev-parse "$HEAD_SHA~1")
+            REASON="aucun déploiement réussi précédent trouvé, repli sur le commit précédent"
+          elif ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "::warning::Commit de base $BASE introuvable dans le repo (historique réécrit ?)"
+            BASE=$(git rev-parse "$HEAD_SHA~1")
+            REASON="base introuvable, repli sur le commit précédent"
+          fi
+
+          echo "BASE = $BASE ($REASON)"
+          if [ "$BASE" = "$HEAD_SHA" ]; then
+            echo "::notice::Le déploiement précédent portait déjà sur ce commit : rien de nouveau à annoncer."
+          fi
+          if git merge-base --is-ancestor "$BASE" "$HEAD_SHA"; then
+            echo "BASE est un ancêtre de HEAD : OK"
+          else
+            echo "::warning::BASE n'est pas un ancêtre de HEAD (déploiement depuis une autre branche ?)"
+          fi
+
+          echo "::group::Plage $BASE..$HEAD_SHA"
+          echo "Commits hors merges : $(git rev-list --no-merges --count "$BASE..$HEAD_SHA")"
+          echo "Merges : $(git rev-list --merges --count "$BASE..$HEAD_SHA")"
+          git log --oneline "$BASE..$HEAD_SHA" | head -30
+          echo "::endgroup::"
+
+          git log "$BASE..$HEAD_SHA" --no-merges --stat=100 \
+            --pretty=format:'### %h %an: %s%n%b' > commits.txt
+          git log "$BASE..$HEAD_SHA" --merges --pretty=format:'%s' > merges.txt
+          git diff "$BASE..$HEAD_SHA" -- . ':(exclude)*lock*' ':(exclude)*.svg' \
+            | head -c 250000 > diff.txt
+
+          echo "Tailles (octets) :"
+          wc -c commits.txt merges.txt diff.txt
+
+          if [ -s commits.txt ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Aucun commit dans la plage : changelog ignoré."
+          fi
+
+      - name: Generate changelog
+        if: steps.collect.outputs.has_changes == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cat > system.txt <<'EOF'
+          Tu rédiges un changelog en français pour les CHEFS DE PROJET de l'application.
+          Tu reçois : les branches mergées, les commits et le diff du code déployé.
+
+          Règles :
+          - Regroupe les changements par features, puis décris avec des puces le détail des changements orientés pour l'utilisateur.
+          - Tu peux utiliser un jargon technique adapté à un chef de projet.
+          - Texte brut uniquement : pas de markdown (ni #, ni **, ni liens). Les puces commencent par "• ".
+          - Aucun nom de fichier, hash ou nom de branche.
+          - Ignore tout ce qui n'est pas visible côté utilisateur (refactor, CI, dépendances, infra, tests).
+          - Si la branche commence par hotfix/, présente-le comme "Correctif" et dis ce qui ne marchait pas.
+          - N'invente rien : n'écris que ce que le code ou les commits justifient.
+          - S'il n'y a aucun changement visible par un client, réponds exactement : SKIP
+          Réponds uniquement avec le texte du changelog, sans préambule.
+          EOF
+
+          jq -n --rawfile s system.txt --rawfile m merges.txt --rawfile c commits.txt --rawfile d diff.txt '{
+            model: "claude-sonnet-5-5",
+            max_tokens: 4000,
+            system: $s,
+            messages: [{role: "user", content: ("BRANCHES MERGÉES:\n" + $m + "\n\nCOMMITS:\n" + $c + "\n\nDIFF (tronqué):\n" + $d)}]
+          }' > req.json
+          echo "Requête : $(wc -c < req.json) octets"
+
+          HTTP=$(curl -sS -o resp.json -w '%{http_code}' https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d @req.json)
+          echo "HTTP $HTTP"
+
+          if [ "$HTTP" != "200" ]; then
+            echo "::error::Erreur API Anthropic"
+            jq -r '.error | "\(.type): \(.message)"' resp.json || cat resp.json
+            echo "Modèles accessibles avec cette clé :"
+            curl -sS https://api.anthropic.com/v1/models \
+              -H "x-api-key: $ANTHROPIC_API_KEY" \
+              -H "anthropic-version: 2023-06-01" | jq -r '.data[].id'
+            exit 1
+          fi
+
+          echo "Modèle : $(jq -r .model resp.json) | stop_reason : $(jq -r .stop_reason resp.json)"
+          echo "Tokens : $(jq -c .usage resp.json)"
+          if [ "$(jq -r .stop_reason resp.json)" = "max_tokens" ]; then
+            echo "::error::Réponse tronquée (max_tokens atteint), changelog non publié"
+            exit 1
+          fi
+          echo "Blocs : $(jq -c '[.content[].type]' resp.json)"
+          jq -r '[.content[] | select(.type == "text") | .text] | join("\n")' resp.json > notes.txt
+          [ -s notes.txt ] || { echo "Réponse vide (aucun bloc text)"; jq -c '.content' resp.json | head -c 2000; exit 1; }
+          echo "::group::Changelog généré"
+          cat notes.txt
+          echo "::endgroup::"
+
+      - name: Post to Slack
+        if: steps.collect.outputs.has_changes == 'true'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ "$(tr -d '[:space:]' < notes.txt)" = "SKIP" ]; then
+            echo "Rien de visible côté client"
+            exit 0
+          fi
+          jq -n --rawfile t notes.txt '{CHANGELOG: $t}' \
+          | curl -sS --fail-with-body -X POST -H 'content-type: application/json' -d @- "$SLACK_WEBHOOK_URL"
