@@ -151,5 +151,5 @@ jobs:
             echo "Rien de visible côté client"
             exit 0
           fi
-          jq -n --rawfile t notes.txt '{CHANGELOG: $t}' \
+          jq -n --rawfile t notes.txt '{PROJECT: ${{ inputs.project }}, CHANGELOG: $t}' \
           | curl -sS --fail-with-body -X POST -H 'content-type: application/json' -d @- "$SLACK_WEBHOOK_URL"
