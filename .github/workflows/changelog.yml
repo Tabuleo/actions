@@ -17,18 +17,19 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
       - name: Collect changes since previous successful deploy
         id: collect
         env:
           GH_TOKEN: ${{ github.token }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          WF_ID: ${{ github.event.workflow_run.workflow_id }}
-          RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          HEAD_SHA: ${{ github.sha }}
+          HEAD_BRANCH: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_ID: ${{ github.run_id }}
         run: |
+          WF_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq .workflow_id)
+        
           echo "::group::Contexte"
           echo "Deploy run #$RUN_NUMBER (workflow $WF_ID), branche $HEAD_BRANCH"
           echo "Commit déployé (HEAD) : $HEAD_SHA"
@@ -146,10 +147,11 @@ jobs:
         if: steps.collect.outputs.has_changes == 'true'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PROJECT: ${{ inputs.project }}
         run: |
           if [ "$(tr -d '[:space:]' < notes.txt)" = "SKIP" ]; then
             echo "Rien de visible côté client"
             exit 0
           fi
-          jq -n --rawfile t notes.txt '{PROJECT: ${{ inputs.project }}, CHANGELOG: $t}' \
+          jq -n --arg p "$PROJECT" --rawfile t notes.txt '{PROJECT: $p, CHANGELOG: $t}' \
           | curl -sS --fail-with-body -X POST -H 'content-type: application/json' -d @- "$SLACK_WEBHOOK_URL"
