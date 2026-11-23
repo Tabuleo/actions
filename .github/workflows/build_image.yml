@@ -38,6 +38,7 @@ jobs:
         
       - name: build image
         run: >
+         docker build
          ${{ inputs.network != '' && format('--network {0}', inputs.network) || '' }}
          $(awk '{ sub ("\\\\$", " "); printf " --build-arg %s", $0  } END { print ""  }' .actions-env)
          -t ${{ inputs.service }} .
