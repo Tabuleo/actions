@@ -9,6 +9,10 @@ on:
       service:
         required: true
         type: string
+      network:
+        required: false
+        type: string
+        default: ''
     secrets:
       iv:
         required: true
@@ -34,4 +38,6 @@ jobs:
         
       - name: build image
         run: >
-         docker build $(awk '{ sub ("\\\\$", " "); printf " --build-arg %s", $0  } END { print ""  }' .actions-env) -t ${{ inputs.service }} .
+         ${{ inputs.network != '' && format('--network {0}', inputs.network) || '' }}
+         $(awk '{ sub ("\\\\$", " "); printf " --build-arg %s", $0  } END { print ""  }' .actions-env)
+         -t ${{ inputs.service }} .
